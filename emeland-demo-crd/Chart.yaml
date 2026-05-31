@@ -1,0 +1,17 @@
+apiVersion: v2
+name: emeland-demo-crd
+description: A parent chart for the CRDs used in the emeland demo application.
+
+type: application
+
+# This is the chart version. This version number should be incremented each time you make changes
+version: 0.1.0
+
+# This is the version number of the application being deployed. 
+# It is recommended to use it with quotes.
+appVersion: "0.9.0"
+
+dependencies:
+  - name: modelsrv-k8s-crd
+    version: 0.1.0
+    repository: "file://../k8s-sensor"

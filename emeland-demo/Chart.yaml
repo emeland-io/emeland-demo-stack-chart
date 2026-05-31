@@ -1,0 +1,24 @@
+apiVersion: v2
+name: emeland-demo
+description: A Helm chart to deploy the emeland demo application on Kubernetes.
+
+type: application
+
+version: 0.1.0
+
+# It is recommended to use it with quotes.
+appVersion: "0.9.0"
+
+dependencies:
+  - name: modelsrv-k8s
+    version: 0.1.0
+    repository: "file://../k8s-sensor"
+
+  - name: kube-prometheus-stack
+    version: 45.0.0
+    repository: "oci://ghcr.io/prometheus-community/charts"
+    
+  # there is a version included in the kube-prometheus-stack chart. Uncomment if you want to have direct control over the version of grafana.
+  #- name: grafana
+  #  version: 13.0.0
+  #  repository: "https://ghcr.io/grafana-community/helm-charts"
