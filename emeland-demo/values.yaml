@@ -31,6 +31,41 @@ image:
     repository: modelsrv-k8s-sensor
     tag: "0.1.0"
     pullPolicy: IfNotPresent
+  gitserver:
+    registry: ghcr.io/emeland-io
+    repository: emeland-demo-git
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  gitsensor:
+    registry: ghcr.io/emeland-io
+    repository: modelsrv-git-sensor
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+
+# SSH host key fingerprint for the git server image (ED25519). Update after publishing
+# a new emeland-demo-git image tag: docker run --rm <image> cat /etc/ssh/ssh_host_ed25519_key.fingerprint
+gitserver:
+  sshHostKeyFingerprint: "SHA256:PLACEHOLDER"
+
+# Demo-only deploy key pair (rotate for non-demo environments).
+deployKey:
+  privateKey: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+    QyNTUxOQAAACAQt20ZpfDx6mxO96arfbKSdEe/i2raDqdx+0HxrEweZAAAAJjEXw3TxF8N
+    0wAAAAtzc2gtZWQyNTUxOQAAACAQt20ZpfDx6mxO96arfbKSdEe/i2raDqdx+0HxrEweZA
+    AAAECMXoy0MouVxwGJ65ssj/1oo1Vc0PBpg/wU2wPiiQWn2RC3bRml8PHqbE73pqt9spJ0
+    R7+LatoOp3H7QfGsTB5kAAAAE2VtZWxhbmQtZGVtby1kZXBsb3kBAg==
+    -----END OPENSSH PRIVATE KEY-----
+  publicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBC3bRml8PHqbE73pqt9spJ0R7+LatoOp3H7QfGsTB5k emeland-demo-deploy"
+
+gitsensor:
+  repoPath: /srv/git/test-gitsensor-target.git
+  branch: main
+  checkoutDir: .work/checkout/test-gitsensor-target
+  watchedPaths:
+    - watchedDir/
+  listenPort: 24100
 
 # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []

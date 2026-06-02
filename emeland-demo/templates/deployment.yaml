@@ -80,7 +80,6 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
 
-
 ---
 
 apiVersion: apps/v1
@@ -165,7 +164,6 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
 
-
 ---
 
 apiVersion: apps/v1
@@ -237,6 +235,174 @@ spec:
       volumes:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "emeland-demo.fullname" . }}-gitserver
+  labels:
+    {{- include "emeland-demo.labels" . | nindent 4 }}
+    component: gitserver
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "emeland-demo.selectorLabels" . | nindent 6 }}
+      component: gitserver
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "emeland-demo.labels" . | nindent 8 }}
+        component: gitserver
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "emeland-demo.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: gitserver
+          image: {{ include "emeland-demo.gitserverImage" . | quote }}
+          imagePullPolicy: {{ .Values.image.gitserver.pullPolicy }}
+          ports:
+            - name: ssh
+              containerPort: 22
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: ssh
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: ssh
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: deploy-key
+              mountPath: /home/git/.ssh/authorized_keys
+              subPath: authorized_keys
+              readOnly: true
+      volumes:
+        - name: deploy-key
+          secret:
+            secretName: {{ include "emeland-demo.fullname" . }}-deploy-key
+            defaultMode: 0600
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "emeland-demo.fullname" . }}-gitsensor
+  labels:
+    {{- include "emeland-demo.labels" . | nindent 4 }}
+    component: gitsensor
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "emeland-demo.selectorLabels" . | nindent 6 }}
+      component: gitsensor
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "emeland-demo.labels" . | nindent 8 }}
+        component: gitsensor
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "emeland-demo.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: gitsensor
+          image: {{ include "emeland-demo.gitsensorImage" . | quote }}
+          imagePullPolicy: {{ .Values.image.gitsensor.pullPolicy }}
+          args:
+            - -config
+            - /config/sensor.yaml
+            - -listen
+            - "0.0.0.0:{{ .Values.gitsensor.listenPort }}"
+          ports:
+            - name: http
+              containerPort: {{ .Values.gitsensor.listenPort }}
+              protocol: TCP
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: gitsensor-config
+              mountPath: /config
+              readOnly: true
+            - name: deploy-key
+              mountPath: /keys
+              readOnly: true
+      volumes:
+        - name: gitsensor-config
+          configMap:
+            name: {{ include "emeland-demo.fullname" . }}-gitsensor-config
+        - name: deploy-key
+          secret:
+            secretName: {{ include "emeland-demo.fullname" . }}-deploy-key
+            defaultMode: 0400
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
