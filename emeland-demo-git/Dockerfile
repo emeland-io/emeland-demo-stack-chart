@@ -14,6 +14,7 @@ FROM debian:bookworm-slim
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     openssh-server \
+    openssh-client \
     git \
     ca-certificates \
   && rm -rf /var/lib/apt/lists/*
@@ -27,7 +28,7 @@ RUN git_shell="$(command -v git-shell)" \
   && chown -R git:git /home/git /srv/git
 
 # Deterministic host keys per image build (document fingerprint in chart README)
-RUN mkdir -p /etc/ssh \
+RUN rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub \
   && ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N "" \
   && ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N "" \
   && ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub | tee /etc/ssh/ssh_host_ed25519_key.fingerprint
