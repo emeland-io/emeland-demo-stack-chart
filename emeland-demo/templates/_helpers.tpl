@@ -60,3 +60,24 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Git server container image
+*/}}
+{{- define "emeland-demo.gitserverImage" -}}
+{{- printf "%s/%s:%s" .Values.image.gitserver.registry .Values.image.gitserver.repository (.Values.image.gitserver.tag | default .Chart.AppVersion) -}}
+{{- end }}
+
+{{/*
+Git sensor container image
+*/}}
+{{- define "emeland-demo.gitsensorImage" -}}
+{{- printf "%s/%s:%s" .Values.image.gitsensor.registry .Values.image.gitsensor.repository (.Values.image.gitsensor.tag | default .Chart.AppVersion) -}}
+{{- end }}
+
+{{/*
+In-cluster SSH URL for the baked test-gitsensor-target bare repository
+*/}}
+{{- define "emeland-demo.gitRepoSSH" -}}
+{{- printf "git@%s-git:%s" (include "emeland-demo.fullname" .) .Values.gitsensor.repoPath -}}
+{{- end }}
