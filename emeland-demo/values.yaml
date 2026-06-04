@@ -1,7 +1,7 @@
 
 
-modelsrv-k8s:
-  # This sets the image tag for the modelsrv-k8s subchart. By default, it uses the appVersion defined in the Chart.yaml of the modelsrv-k8s subchart.
+modelsrv-k8s-sensor:
+  # This sets the image tag for the modelsrv-k8s-sensor subchart. By default, it uses the appVersion defined in the Chart.yaml of the modelsrv-k8s-sensor subchart.
   image:
     tag: "0.1.0"
     registry: ghcr.io/emeland-io

@@ -10,9 +10,9 @@ version: 0.1.0
 appVersion: "0.9.0"
 
 dependencies:
-  - name: modelsrv-k8s
+  - name: modelsrv-k8s-sensor
     version: 0.1.0
-    repository: "file://../k8s-sensor"
+    repository: "oci://ghcr.io/emeland-io/charts"
 
   - name: kube-prometheus-stack
     version: 45.0.0

@@ -1,0 +1,23 @@
+name: Lint Helm charts
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4.3.1
+        with:
+          version: v3.17.3
+
+      - name: Lint charts
+        run: |
+          helm dependency update emeland-demo
+          helm dependency update emeland-demo-crd
+          helm lint emeland-demo
+          helm lint emeland-demo-crd
