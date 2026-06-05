@@ -114,7 +114,9 @@ spec:
         - name: tools
           image: {{ include "emeland-demo.toolsImage" . | quote }}
           imagePullPolicy: {{ .Values.image.tools.pullPolicy }}
-          command: ["sh", "-c", "sleep infinity"]
+          command: ["sh"]
+          stdin: true
+          tty: true
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -181,7 +183,6 @@ spec:
         - name: gitserver
           image: {{ include "emeland-demo.gitserverImage" . | quote }}
           imagePullPolicy: {{ .Values.image.gitserver.pullPolicy }}
-          command: ["sh", "-c", "chmod 755 /run/sshd && usermod -p '*' git && exec /entrypoint.sh /usr/sbin/sshd -D -e"]
           ports:
             - name: ssh
               containerPort: 22
@@ -203,16 +204,12 @@ spec:
           volumeMounts:
             - name: ssh-dir
               mountPath: /home/git/.ssh
-            - name: sshd-run
-              mountPath: /run/sshd
       volumes:
         - name: deploy-key
           secret:
             secretName: {{ include "emeland-demo.fullname" . }}-deploy-key
             defaultMode: 0600
         - name: ssh-dir
-          emptyDir: {}
-        - name: sshd-run
           emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
@@ -270,9 +267,6 @@ spec:
         - name: gitsensor
           image: {{ include "emeland-demo.gitsensorImage" . | quote }}
           imagePullPolicy: {{ .Values.image.gitsensor.pullPolicy }}
-          securityContext:
-            runAsUser: 0
-            runAsGroup: 0
           args:
             - -config
             - /config/sensor.yaml
@@ -302,7 +296,7 @@ spec:
         - name: deploy-key
           secret:
             secretName: {{ include "emeland-demo.fullname" . }}-deploy-key
-            defaultMode: 0400
+            defaultMode: 0444
         - name: work
           emptyDir: {}
       {{- with .Values.nodeSelector }}

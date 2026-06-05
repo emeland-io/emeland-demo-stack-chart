@@ -76,13 +76,6 @@ Tools container image
 {{- end }}
 
 {{/*
-Sensor container image
-*/}}
-{{- define "emeland-demo.sensorImage" -}}
-{{- printf "%s/%s:%s" .Values.image.sensor.registry .Values.image.sensor.repository (.Values.image.sensor.tag | default .Chart.AppVersion) -}}
-{{- end }}
-
-{{/*
 Git server container image
 */}}
 {{- define "emeland-demo.gitserverImage" -}}

@@ -25,11 +25,6 @@ image:
     repository: emelandctl
     tag: "main"
     pullPolicy: IfNotPresent
-  sensor:
-    registry: ghcr.io/emeland-io
-    repository: modelsrv-k8s-sensor
-    tag: "main"
-    pullPolicy: IfNotPresent
   gitserver:
     registry: ghcr.io/emeland-io
     repository: emeland-demo-git
