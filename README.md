@@ -1,30 +1,95 @@
 # EmELand Demo Stack
 
-This is a helm chart that should roll out a complete EmELand stack for demonstration purposes. You will need to provide a Kubernetes cluster to run the individual components
+This is a helm chart that should roll out a complete EmELand stack for demonstration purposes. You will need to provide a Kubernetes cluster to run the individual components.
 
-The following example uses a KinD cluster to provide the environment
-```
-kind create 
-helm install emeland-demo-crd ./charts/emeland-demo-crd --namespace emeland-system --create-namespace
-helm install emeland-demo ./charts/emeland-demo --namespace emeland-demo --create-namespace
+The following example uses a KinD cluster to provide the environment:
+```bash
+kind create cluster --name emeland-demo
+helm dependency build ./emeland-demo
+helm install emeland-demo ./emeland-demo --namespace emeland-demo --create-namespace
 ```
 
 # Stack Setup
 
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  Kubernetes Cluster (KinD)                                           │
+│                                                                      │
+│  ┌─────────────────┐   git clone (SSH)    ┌────────────────────┐     │
+│  │  gitsensor      │─────────────────────▶│  gitserver         │     │
+│  │                 │   port 22            │                    │     │
+│  │  watches repo   │                      │  sshd + git-shell  │     │
+│  │  for changes    │                      │  serves:           │     │
+│  │                 │                      │  test-gitsensor-   │     │
+│  │                 │                      │  target.git        │     │
+│  └────────┬────────┘                      └────────────────────┘     │
+│           │                                                          │
+│           │ pushes events                                            │
+│           │ POST /api/events/push                                    │
+│           ▼                                                          │
+│  ┌─────────────────────────────────────┐                             │
+│  │        modelsrv (server)            │                             │
+│  │                                     │                             │
+│  │  • Aggregates events into model     │◄──── kubectl exec           │
+│  │  • Runs finding inference filters   │      emelandctl             │
+│  │  • Exposes REST API (:8080/api)     │         │                   │
+│  │  • Exposes /metrics                 │         │                   │
+│  └──────────────────▲──────────────────┘         │                   │
+│                     │                    ┌───────┴─────────┐         │
+│                     │ pushes events      │  tools pod      │         │
+│                     │                    │  (CLI shell)    │         │
+│  ┌──────────────────┴──┐                 └─────────────────┘         │
+│  │  k8s-sensor         │                                             │
+│  │  (controller)       │  watches                                    │
+│  │                     │────────────────▶ Deployments, Services,     │
+│  │                     │                  Namespaces, Ingresses ...  │
+│  └─────────────────────┘                                             │
+│                                                                      │
+│  ┌────────────────────────────────────────────────────────────┐      │
+│  │  Prometheus Stack                                          │      │
+│  │                                                            │      │
+│  │  ┌────────────┐   scrapes /metrics   ┌────────────────┐    │      │
+│  │  │ Prometheus │─────────────────────▶│ modelsrv       │    │      │
+│  │  │            │                      │ kube-state-m.  │    │      │
+│  │  │            │                      │ node-exporter  │    │      │
+│  │  └───┬────┬───┘                      └────────────────┘    │      │
+│  │      │    │                                                │      │
+│  │      │    └─────────────────────┐                          │      │
+│  │      │ alerts                   │ queries                  │      │
+│  │      ▼                          ▼                          │      │
+│  │  ┌──────────────┐         ┌─────────┐                      │      │
+│  │  │ Alertmanager │         │ Grafana │                      │      │
+│  │  └──────────────┘         └─────────┘                      │      │
+│  └────────────────────────────────────────────────────────────┘      │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+## Connections
+
+| From | To | Protocol | Purpose |
+|------|----|----------|---------|
+| gitsensor | gitserver | SSH (port 22) | Clone repo, poll for changes |
+| gitsensor | modelsrv | HTTP POST `/api/events/push` | Push resource events |
+| k8s-sensor | K8s API | HTTPS (in-cluster) | Watch workloads |
+| k8s-sensor | modelsrv | HTTP POST `/api/events/push` | Push resource events |
+| Prometheus | modelsrv | HTTP GET `/metrics` | Scrape metrics |
+| tools pod | modelsrv | HTTP GET `/api/...` | CLI queries |
+| Grafana | Prometheus | HTTP | Query metrics for dashboards |
+
+## Components
+
 The helm chart will roll out a number of components, either directly or from sub-charts:
 
-- The 'emeland-demo-crd' chart allows the stable deployment of all the CRDs required for the full stack.
-    - The modelsrv-k8s-sensor-crd
-    - The grafana-crd
-    - The prometheus-operator-crd
+- CRDs required for the K8s sensor (via `modelsrv-k8s-crd` sub-chart)
 - This chart will set up the `Deployment` for the following components from prepared OCI images:
-    1. **A modelsrv as the central server.** This will replaced with the the [web-server for the Web UI variant](https://github.com/emeland-io/modelsrv-web-ui-server), once it becomes available. It is configured to listen to events from the following two components
-    2. **a container running the EmELand CLI tool.**. The container is running a shell and a user can attach to that shell via `kubectl attach`.
-    3. **a container containing the git sensor demo data**: Image `ghcr.io/emeland-io/emeland-demo-git` (built from [`emeland-demo-git/`](emeland-demo-git/)) runs an SSH git server with a bare clone of [`test-gitsensor-target`](https://github.com/emeland-io/test-gitsensor-target).
+    1. **A modelsrv as the central server.** This will be replaced with the [web-server for the Web UI variant](https://github.com/emeland-io/modelsrv-web-ui-server), once it becomes available. It is configured to listen to events from the following two components.
+    2. **A container running the EmELand CLI tool.** The container is running a shell and a user can attach to that shell via `kubectl exec`.
+    3. **A container containing the git sensor demo data**: Image `ghcr.io/emeland-io/emeland-demo-git` (built from [`emeland-demo-git/`](emeland-demo-git/)) runs an SSH git server with a bare clone of [`test-gitsensor-target`](https://github.com/emeland-io/test-gitsensor-target).
     4. **The Git sensor** (`modelsrv-git-sensor`): Clones from the in-cluster git service over SSH and watches `watchedDir/` manifests.
-- It will install the modelsrv Kubernetes sensor as a sub-chart. The sensor will scan the K8s cluster it is deployed in.
-- It will install the kube-prometheus-stack chart as a sub-chart
-    - It will install the a version of Grafana. If you want to have direct control of the version of the [Grafana chart](https://github.com/grafana-community/helm-charts/pkgs/container/helm-charts%2Fgrafana) from the Grafana community, you will need to configure this.
+- The modelsrv Kubernetes sensor (via `modelsrv-k8s-sensor` sub-chart). The sensor will scan the K8s cluster it is deployed in.
+- The kube-prometheus-stack (sub-chart): Prometheus, Alertmanager, Grafana, kube-state-metrics, and node-exporter.
 
 ## Git server image
 

@@ -3,9 +3,8 @@
 modelsrv-k8s-sensor:
   # This sets the image tag for the modelsrv-k8s-sensor subchart. By default, it uses the appVersion defined in the Chart.yaml of the modelsrv-k8s-sensor subchart.
   image:
-    tag: "0.1.0"
-    registry: ghcr.io/emeland-io
-    repository: modelsrv-k8s
+    tag: "main"
+    repository: ghcr.io/emeland-io/modelsrv-k8s-sensor
 
 # Default values for emeland-demo.
 # This is a YAML-formatted file.
@@ -18,28 +17,23 @@ replicaCount: 1
 image:
   server:
     registry: ghcr.io/emeland-io
-    repository: emeland-demo-server
-    tag: "0.1.0"
+    repository: modelsrv
+    tag: "v0.9.1-rc1"
     pullPolicy: IfNotPresent
   tools:
     registry: ghcr.io/emeland-io
-    repository: emeland-demo-tools
-    tag: "0.1.0"
-    pullPolicy: IfNotPresent
-  sensor:
-    registry: ghcr.io/emeland-io
-    repository: modelsrv-k8s-sensor
-    tag: "0.1.0"
+    repository: emelandctl
+    tag: "v0.9.1-rc1"
     pullPolicy: IfNotPresent
   gitserver:
     registry: ghcr.io/emeland-io
     repository: emeland-demo-git
-    tag: "0.1.0"
+    tag: "v0.1.1-rc1"
     pullPolicy: IfNotPresent
   gitsensor:
     registry: ghcr.io/emeland-io
     repository: modelsrv-git-sensor
-    tag: "0.1.0"
+    tag: "v0.9.1-rc1"
     pullPolicy: IfNotPresent
 
 # SSH host key fingerprint for the git server image (ED25519). Update after publishing
@@ -62,7 +56,7 @@ deployKey:
 gitsensor:
   repoPath: /srv/git/test-gitsensor-target.git
   branch: main
-  checkoutDir: .work/checkout/test-gitsensor-target
+  checkoutDir: /work/checkout/test-gitsensor-target
   watchedPaths:
     - watchedDir/
   listenPort: 24100

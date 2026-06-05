@@ -36,121 +36,27 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        - name: {{ .Chart.Name }}
-          {{- with .Values.securityContext }}
-          securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+        - name: server
+          image: {{ include "emeland-demo.serverImage" . | quote }}
+          imagePullPolicy: {{ .Values.image.server.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.service.port }}
+              containerPort: 8080
               protocol: TCP
-          {{- with .Values.livenessProbe }}
           livenessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.readinessProbe }}
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
           readinessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.volumeMounts }}
-          volumeMounts:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-      {{- with .Values.volumes }}
-      volumes:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-
----
-
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "emeland-demo.fullname" . }}-sensor
-  labels:
-    {{- include "emeland-demo.labels" . | nindent 4 }}
-    component: sensor
-spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
-  selector:
-    matchLabels:
-      {{- include "emeland-demo.selectorLabels" . | nindent 6 }}
-      component: sensor
-  template:
-    metadata:
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      labels:
-        {{- include "emeland-demo.labels" . | nindent 8 }}
-        component: sensor
-        {{- with .Values.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-    spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "emeland-demo.serviceAccountName" . }}
-      {{- with .Values.podSecurityContext }}
-      securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      containers:
-        - name: {{ .Chart.Name }}
-          {{- with .Values.securityContext }}
-          securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - name: http
-              containerPort: {{ .Values.service.port }}
-              protocol: TCP
-          {{- with .Values.livenessProbe }}
-          livenessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.readinessProbe }}
-          readinessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.resources }}
-          resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.volumeMounts }}
-          volumeMounts:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-      {{- with .Values.volumes }}
-      volumes:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -204,37 +110,13 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        - name: {{ .Chart.Name }}
-          {{- with .Values.securityContext }}
-          securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - name: http
-              containerPort: {{ .Values.service.port }}
-              protocol: TCP
-          {{- with .Values.livenessProbe }}
-          livenessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.readinessProbe }}
-          readinessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.resources }}
-          resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.volumeMounts }}
-          volumeMounts:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-      {{- with .Values.volumes }}
-      volumes:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      containers:
+        - name: tools
+          image: {{ include "emeland-demo.toolsImage" . | quote }}
+          imagePullPolicy: {{ .Values.image.tools.pullPolicy }}
+          command: ["sh"]
+          stdin: true
+          tty: true
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -287,6 +169,16 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      initContainers:
+        - name: init-ssh
+          image: {{ include "emeland-demo.gitserverImage" . | quote }}
+          command: ["sh", "-c", "cp /secret/authorized_keys /ssh/authorized_keys && chmod 600 /ssh/authorized_keys"]
+          volumeMounts:
+            - name: deploy-key
+              mountPath: /secret
+              readOnly: true
+            - name: ssh-dir
+              mountPath: /ssh
       containers:
         - name: gitserver
           image: {{ include "emeland-demo.gitserverImage" . | quote }}
@@ -310,15 +202,15 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           volumeMounts:
-            - name: deploy-key
-              mountPath: /home/git/.ssh/authorized_keys
-              subPath: authorized_keys
-              readOnly: true
+            - name: ssh-dir
+              mountPath: /home/git/.ssh
       volumes:
         - name: deploy-key
           secret:
             secretName: {{ include "emeland-demo.fullname" . }}-deploy-key
             defaultMode: 0600
+        - name: ssh-dir
+          emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -395,6 +287,8 @@ spec:
             - name: deploy-key
               mountPath: /keys
               readOnly: true
+            - name: work
+              mountPath: /work
       volumes:
         - name: gitsensor-config
           configMap:
@@ -402,7 +296,9 @@ spec:
         - name: deploy-key
           secret:
             secretName: {{ include "emeland-demo.fullname" . }}-deploy-key
-            defaultMode: 0400
+            defaultMode: 0444
+        - name: work
+          emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
