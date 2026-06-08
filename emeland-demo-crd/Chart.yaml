@@ -14,4 +14,4 @@ appVersion: "0.9.0"
 dependencies:
   - name: modelsrv-k8s-crd
     version: 0.1.0
-    repository: "file://../k8s-sensor"
+    repository: "oci://ghcr.io/emeland-io/charts"

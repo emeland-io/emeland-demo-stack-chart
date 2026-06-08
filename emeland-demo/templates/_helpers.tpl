@@ -62,6 +62,20 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
+Server container image
+*/}}
+{{- define "emeland-demo.serverImage" -}}
+{{- printf "%s/%s:%s" .Values.image.server.registry .Values.image.server.repository (.Values.image.server.tag | default .Chart.AppVersion) -}}
+{{- end }}
+
+{{/*
+Tools container image
+*/}}
+{{- define "emeland-demo.toolsImage" -}}
+{{- printf "%s/%s:%s" .Values.image.tools.registry .Values.image.tools.repository (.Values.image.tools.tag | default .Chart.AppVersion) -}}
+{{- end }}
+
+{{/*
 Git server container image
 */}}
 {{- define "emeland-demo.gitserverImage" -}}

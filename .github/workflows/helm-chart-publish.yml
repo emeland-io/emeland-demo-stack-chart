@@ -1,0 +1,45 @@
+name: Publish Helm charts
+
+on:
+  push:
+    tags: ['v*']
+
+env:
+  REGISTRY: ghcr.io
+  HELM_OCI_REGISTRY: ghcr.io/emeland-io/charts
+
+jobs:
+  publish-charts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4.3.1
+        with:
+          version: v3.17.3
+
+      - name: Resolve version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4.2.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package and push charts
+        run: |
+          for chart in emeland-demo emeland-demo-crd; do
+            sed -i "s/^version:.*/version: ${VERSION}/" "${chart}/Chart.yaml"
+            helm dependency update "${chart}"
+            helm package "${chart}"
+            helm push "${chart}-${VERSION}.tgz" "oci://${HELM_OCI_REGISTRY}"
+          done

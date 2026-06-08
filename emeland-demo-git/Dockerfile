@@ -23,7 +23,8 @@ RUN apt-get update \
 RUN git_shell="$(command -v git-shell)" \
   && grep -qxF "$git_shell" /etc/shells 2>/dev/null || echo "$git_shell" >> /etc/shells \
   && useradd --system --create-home --home-dir /home/git --shell "$git_shell" git \
-  && mkdir -p /home/git/.ssh /srv/git \
+  && usermod -p '*' git \
+  && mkdir -p /home/git/.ssh /srv/git /run/sshd \
   && chmod 700 /home/git/.ssh \
   && chown -R git:git /home/git /srv/git
 
