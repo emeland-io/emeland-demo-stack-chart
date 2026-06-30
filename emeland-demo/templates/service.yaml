@@ -1,3 +1,25 @@
+{{- if .Values.filter.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "emeland-demo.fullname" . }}-filter
+  labels:
+    {{- include "emeland-demo.labels" . | nindent 4 }}
+    component: filter
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.filter.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "emeland-demo.selectorLabels" . | nindent 4 }}
+    component: filter
+
+---
+
+{{- end }}
 apiVersion: v1
 kind: Service
 metadata:

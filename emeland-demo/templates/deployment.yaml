@@ -1,3 +1,122 @@
+{{- if .Values.filter.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "emeland-demo.fullname" . }}-filter
+  labels:
+    {{- include "emeland-demo.labels" . | nindent 4 }}
+    component: filter
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "emeland-demo.selectorLabels" . | nindent 6 }}
+      component: filter
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "emeland-demo.labels" . | nindent 8 }}
+        component: filter
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "emeland-demo.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: filter
+          image: {{ include "emeland-demo.filterImage" . | quote }}
+          imagePullPolicy: {{ .Values.image.filter.pullPolicy }}
+          env:
+            - name: SERVICE_ADDR
+              value: ":8080"
+            - name: DATA_DIR
+              value: "/data"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+        - name: register-downstream
+          image: curlimages/curl:8.5.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              FILTER="http://127.0.0.1:8080"
+              SERVER="{{ include "emeland-demo.serverInternalUrl" . }}"
+              CALLBACK="{{ tpl (index .Values.filter.downstreamSubscribers 0) . }}"
+              # Plain modelsrv serves /api and /swagger only — not /.
+              until curl -sf "${FILTER}/api/events/subscribers" >/dev/null 2>&1; do
+                echo "waiting for filter API..."
+                sleep 2
+              done
+              while true; do
+                until curl -sf "${SERVER}/" >/dev/null 2>&1; do
+                  echo "waiting for webserver..."
+                  sleep 2
+                done
+                if curl -sf "${FILTER}/api/events/subscribers" | grep -Fq "${CALLBACK}"; then
+                  sleep 30
+                  continue
+                fi
+                echo "registering downstream ${CALLBACK}"
+                curl -sf -X POST "${FILTER}/api/events/register" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"callbackUrl\":\"${CALLBACK}\"}"
+                echo "downstream registration complete"
+                sleep 30
+              done
+      volumes:
+        - name: data
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+---
+
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -39,6 +158,15 @@ spec:
         - name: server
           image: {{ include "emeland-demo.serverImage" . | quote }}
           imagePullPolicy: {{ .Values.image.server.pullPolicy }}
+          {{- if .Values.server.noAuth }}
+          env:
+            - name: NO_AUTH
+              value: "true"
+            {{- with .Values.server.publicResourceTypes }}
+            - name: PUBLIC_RESOURCE_TYPES
+              value: {{ . | quote }}
+            {{- end }}
+          {{- end }}
           ports:
             - name: http
               containerPort: 8080
@@ -109,7 +237,6 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      containers:
       containers:
         - name: tools
           image: {{ include "emeland-demo.toolsImage" . | quote }}
