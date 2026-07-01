@@ -17,8 +17,8 @@ replicaCount: 1
 image:
   server:
     registry: ghcr.io/emeland-io
-    repository: modelsrv
-    tag: "v0.9.1-rc1"
+    repository: modelsrv-web-ui-server
+    tag: "main"
     pullPolicy: IfNotPresent
   tools:
     registry: ghcr.io/emeland-io
@@ -34,6 +34,11 @@ image:
     registry: ghcr.io/emeland-io
     repository: modelsrv-git-sensor
     tag: "v0.9.1-rc1"
+    pullPolicy: IfNotPresent
+  filter:
+    registry: ghcr.io/emeland-io
+    repository: modelsrv
+    tag: "v0.9.3-rc2"
     pullPolicy: IfNotPresent
 
 # SSH host key fingerprint for the git server image (ED25519). Update after publishing
@@ -53,7 +58,25 @@ deployKey:
     -----END OPENSSH PRIVATE KEY-----
   publicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBC3bRml8PHqbE73pqt9spJ0R7+LatoOp3H7QfGsTB5k emeland-demo-deploy"
 
+# modelsrv-web-ui-server embeds modelsrv in-process (no separate backend sidecar).
+server:
+  noAuth: true
+  # Demo visibility: show git- and filter-ingested resources without OIDC ownership.
+  publicResourceTypes: "System,SystemInstance,Node,NodeType,Context,ContextType,Finding,FindingType,API,APIInstance,Component,ComponentInstance,FilterRule,MergeRule"
+
+# Phase0 integrity filter (modelsrv) between git sensor and web UI server.
+# Flow: gitserver -> gitsensor -> filter -> webserver
+filter:
+  enabled: true
+  service:
+    port: 80
+  # Downstream modelsrv instances that receive filtered events (including findings).
+  downstreamSubscribers:
+    - http://{{ include "emeland-demo.fullname" . }}-server:{{ .Values.service.port }}/api/
+
 gitsensor:
+  # When filter.enabled, events push to the filter Service; otherwise directly to the webserver.
+  subscribers: []
   repoPath: /srv/git/test-gitsensor-target.git
   branch: main
   checkoutDir: /work/checkout/test-gitsensor-target

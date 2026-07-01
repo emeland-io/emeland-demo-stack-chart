@@ -62,10 +62,38 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Server container image
+Web UI server container image
 */}}
 {{- define "emeland-demo.serverImage" -}}
 {{- printf "%s/%s:%s" .Values.image.server.registry .Values.image.server.repository (.Values.image.server.tag | default .Chart.AppVersion) -}}
+{{- end }}
+
+{{/*
+In-cluster web UI server base URL (no trailing slash).
+*/}}
+{{- define "emeland-demo.serverInternalUrl" -}}
+{{- printf "http://%s-server:%v" (include "emeland-demo.fullname" .) .Values.service.port -}}
+{{- end }}
+
+{{/*
+In-cluster modelsrv API base URL for sensor event push (must end with /api/).
+*/}}
+{{- define "emeland-demo.modelsrvApiUrl" -}}
+{{- printf "%s/api/" (include "emeland-demo.serverInternalUrl" .) -}}
+{{- end }}
+
+{{/*
+In-cluster phase0 filter API base URL (must end with /api/).
+*/}}
+{{- define "emeland-demo.filterApiUrl" -}}
+{{- printf "http://%s-filter:%v/api/" (include "emeland-demo.fullname" .) .Values.filter.service.port -}}
+{{- end }}
+
+{{/*
+modelsrv filter container image (phase0 integrity checks)
+*/}}
+{{- define "emeland-demo.filterImage" -}}
+{{- printf "%s/%s:%s" .Values.image.filter.registry .Values.image.filter.repository (.Values.image.filter.tag | default .Chart.AppVersion) -}}
 {{- end }}
 
 {{/*

@@ -7,7 +7,15 @@ metadata:
 data:
   sensor.yaml: |
     subscribers:
-      - http://{{ include "emeland-demo.fullname" . }}-server:{{ .Values.service.port }}/api/
+{{- if .Values.gitsensor.subscribers }}
+{{- range .Values.gitsensor.subscribers }}
+      - {{ tpl . $ | quote }}
+{{- end }}
+{{- else if .Values.filter.enabled }}
+      - {{ include "emeland-demo.filterApiUrl" . | quote }}
+{{- else }}
+      - {{ include "emeland-demo.modelsrvApiUrl" . | quote }}
+{{- end }}
     watch: true
     repos:
       - type: github
