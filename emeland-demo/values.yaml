@@ -18,7 +18,7 @@ image:
   server:
     registry: ghcr.io/emeland-io
     repository: modelsrv-web-ui-server
-    tag: "main"
+    tag: "0.4.0"
     pullPolicy: IfNotPresent
   tools:
     registry: ghcr.io/emeland-io
@@ -38,7 +38,7 @@ image:
   filter:
     registry: ghcr.io/emeland-io
     repository: modelsrv
-    tag: "v0.9.3-rc2"
+    tag: "v0.9.3-rc3"
     pullPolicy: IfNotPresent
 
 # SSH host key fingerprint for the git server image (ED25519). Update after publishing
