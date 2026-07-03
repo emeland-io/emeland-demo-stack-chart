@@ -13,14 +13,17 @@ dependencies:
   - name: modelsrv-k8s-crd
     version: 0.1.0
     repository: "oci://ghcr.io/emeland-io/charts"
+    condition: modelsrv-k8s-sensor.enabled
 
   - name: modelsrv-k8s-sensor
     version: 0.1.0
     repository: "oci://ghcr.io/emeland-io/charts"
+    condition: modelsrv-k8s-sensor.enabled
 
   - name: kube-prometheus-stack
     version: 45.0.0
     repository: "oci://ghcr.io/prometheus-community/charts"
+    condition: kube-prometheus-stack.enabled
     
   # there is a version included in the kube-prometheus-stack chart. Uncomment if you want to have direct control over the version of grafana.
   #- name: grafana

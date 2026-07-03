@@ -1,6 +1,10 @@
 
+# Subchart toggles (gated by condition: in Chart.yaml — skips the subchart entirely when false).
+kube-prometheus-stack:
+  enabled: true
 
 modelsrv-k8s-sensor:
+  enabled: true
   # This sets the image tag for the modelsrv-k8s-sensor subchart. By default, it uses the appVersion defined in the Chart.yaml of the modelsrv-k8s-sensor subchart.
   image:
     tag: "main"
@@ -44,6 +48,7 @@ image:
 # SSH host key fingerprint for the git server image (ED25519). Update after publishing
 # a new emeland-demo-git image tag: docker run --rm <image> cat /etc/ssh/ssh_host_ed25519_key.fingerprint
 gitserver:
+  enabled: true
   sshHostKeyFingerprint: "SHA256:PLACEHOLDER"
 
 # Demo-only deploy key pair (rotate for non-demo environments).
@@ -58,8 +63,13 @@ deployKey:
     -----END OPENSSH PRIVATE KEY-----
   publicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBC3bRml8PHqbE73pqt9spJ0R7+LatoOp3H7QfGsTB5k emeland-demo-deploy"
 
+# Component toggles for the parent chart Deployments/Services.
+tools:
+  enabled: true
+
 # modelsrv-web-ui-server embeds modelsrv in-process (no separate backend sidecar).
 server:
+  enabled: true
   noAuth: true
   # Demo visibility: show git- and filter-ingested resources without OIDC ownership.
   publicResourceTypes: "System,SystemInstance,Node,NodeType,Context,ContextType,Finding,FindingType,API,APIInstance,Component,ComponentInstance,FilterRule,MergeRule"
@@ -75,6 +85,7 @@ filter:
     - http://{{ include "emeland-demo.fullname" . }}-server:{{ .Values.service.port }}/api/
 
 gitsensor:
+  enabled: true
   # When filter.enabled, events push to the filter Service; otherwise directly to the webserver.
   subscribers: []
   repoPath: /srv/git/test-gitsensor-target.git

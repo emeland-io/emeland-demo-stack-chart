@@ -20,6 +20,7 @@ spec:
 ---
 
 {{- end }}
+{{- if .Values.server.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -40,6 +41,8 @@ spec:
 
 ---
 
+{{- end }}
+{{- if .Values.gitserver.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -57,3 +60,4 @@ spec:
   selector:
     {{- include "emeland-demo.selectorLabels" . | nindent 4 }}
     component: gitserver
+{{- end }}
