@@ -6,7 +6,9 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  HELM_OCI_REGISTRY: ghcr.io/emeland-io/charts
+  # Repository-scoped OCI path: packages published with GITHUB_TOKEN inherit this repo's visibility.
+  # See https://docs.github.com/en/packages/managing-github-packages-using-github-actions-workflows/publishing-and-installing-a-package-with-github-actions
+  HELM_OCI_REPO: ghcr.io/${{ github.repository }}
 
 jobs:
   publish-charts:
@@ -32,29 +34,30 @@ jobs:
         uses: docker/login-action@v4.2.0
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package and push charts
         run: |
+          set -euo pipefail
           for chart in emeland-demo emeland-demo-crd; do
             sed -i "s/^version:.*/version: ${VERSION}/" "${chart}/Chart.yaml"
             helm dependency update "${chart}"
             helm package "${chart}"
-            helm push "${chart}-${VERSION}.tgz" "oci://${HELM_OCI_REGISTRY}"
+            echo "Pushing ${chart} to oci://${HELM_OCI_REPO}"
+            helm push "${chart}-${VERSION}.tgz" "oci://${HELM_OCI_REPO}"
           done
 
-      # GHCR packages are private by default. ORG_PAT (packages admin on emeland-io) is required
-      # when GITHUB_TOKEN cannot change org package visibility; falls back to GITHUB_TOKEN otherwise.
-      - name: Make chart packages public
-        env:
-          GH_TOKEN: ${{ secrets.ORG_PAT != '' && secrets.ORG_PAT || github.token }}
+      - name: Verify published charts
         run: |
           set -euo pipefail
           for chart in emeland-demo emeland-demo-crd; do
-            pkg="charts%2F${chart}"
-            echo "Setting visibility=public for charts/${chart}..."
-            gh api --method PATCH \
-              "/orgs/emeland-io/packages/container/${pkg}" \
-              -f visibility='public'
+            ref="oci://${HELM_OCI_REPO}/${chart}"
+            echo "Verifying ${ref} --version ${VERSION}"
+            helm show chart "${ref}" --version "${VERSION}" >/dev/null
+            echo "  OK: ${ref} --version ${VERSION}"
           done
+          echo ""
+          echo "Install (public repo = anonymous pull):"
+          echo "  helm upgrade --install emeland-demo-crd oci://${HELM_OCI_REPO}/emeland-demo-crd --version ${VERSION} -n emeland-demo --create-namespace"
+          echo "  helm upgrade --install emeland-demo oci://${HELM_OCI_REPO}/emeland-demo --version ${VERSION} -n emeland-demo --create-namespace"
