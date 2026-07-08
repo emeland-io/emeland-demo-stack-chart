@@ -90,6 +90,32 @@ In-cluster phase0 filter API base URL (must end with /api/).
 {{- end }}
 
 {{/*
+modelsrv-k8s-sensor subchart fullname (mirrors modelsrv-k8s-sensor.fullname).
+*/}}
+{{- define "emeland-demo.k8sSensorFullname" -}}
+{{- $sensor := index .Values "modelsrv-k8s-sensor" }}
+{{- if $sensor.fullnameOverride }}
+{{- $sensor.fullnameOverride | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- $name := default "modelsrv-k8s-sensor" $sensor.nameOverride }}
+{{- if contains $name .Release.Name }}
+{{- .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+In-cluster k8s-sensor modelsrv REST API base URL (no trailing slash).
+Uses the supplemental -api Service when the bundled subchart does not expose port 8080.
+*/}}
+{{- define "emeland-demo.k8sSensorApiServiceUrl" -}}
+{{- $port := .Values.filter.k8sSensor.apiPort | default 8080 -}}
+{{- printf "http://%s-api:%v" (include "emeland-demo.k8sSensorFullname" .) $port -}}
+{{- end }}
+
+{{/*
 modelsrv filter container image (phase0 integrity checks)
 */}}
 {{- define "emeland-demo.filterImage" -}}

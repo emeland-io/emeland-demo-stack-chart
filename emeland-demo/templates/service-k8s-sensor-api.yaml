@@ -1,0 +1,20 @@
+{{- if and .Values.filter.enabled (index .Values "modelsrv-k8s-sensor").enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "emeland-demo.k8sSensorFullname" . }}-api
+  labels:
+    {{- include "emeland-demo.labels" . | nindent 4 }}
+    component: k8s-sensor-api
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: modelsrv-k8s-sensor
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    control-plane: controller-manager
+  ports:
+    - name: api
+      port: {{ .Values.filter.k8sSensor.apiPort | default 8080 }}
+      targetPort: {{ .Values.filter.k8sSensor.apiPort | default 8080 }}
+      protocol: TCP
+{{- end }}

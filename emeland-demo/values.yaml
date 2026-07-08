@@ -7,7 +7,7 @@ modelsrv-k8s-sensor:
   enabled: true
   # This sets the image tag for the modelsrv-k8s-sensor subchart. By default, it uses the appVersion defined in the Chart.yaml of the modelsrv-k8s-sensor subchart.
   image:
-    tag: "main"
+    tag: "local"
     repository: ghcr.io/emeland-io/modelsrv-k8s-sensor
 
 # Default values for emeland-demo.
@@ -74,12 +74,16 @@ server:
   # Demo visibility: show git- and filter-ingested resources without OIDC ownership.
   publicResourceTypes: "System,SystemInstance,Node,NodeType,Context,ContextType,Finding,FindingType,API,APIInstance,Component,ComponentInstance,FilterRule,MergeRule"
 
-# Phase0 integrity filter (modelsrv) between git sensor and web UI server.
+# Phase0 integrity filter (modelsrv) between sensors and web UI server.
 # Flow: gitserver -> gitsensor -> filter -> webserver
+#       k8s-sensor -> filter -> webserver (filter registers on k8s-sensor when both are enabled)
 filter:
   enabled: true
   service:
     port: 80
+  # k8s-sensor modelsrv REST API (in-cluster). Supplemental -api Service when subchart 0.1.0 omits port 8080.
+  k8sSensor:
+    apiPort: 8080
   # Downstream modelsrv instances that receive filtered events (including findings).
   downstreamSubscribers:
     - http://{{ include "emeland-demo.fullname" . }}-server:{{ .Values.service.port }}/api/
