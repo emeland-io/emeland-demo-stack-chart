@@ -98,6 +98,41 @@ spec:
                 echo "downstream registration complete"
                 sleep 30
               done
+        {{- if (index .Values "modelsrv-k8s-sensor").enabled }}
+        - name: register-upstream-k8s-sensor
+          image: curlimages/curl:8.5.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              FILTER="http://127.0.0.1:8080"
+              K8S_SENSOR="{{ include "emeland-demo.k8sSensorApiServiceUrl" . }}"
+              CALLBACK="{{ include "emeland-demo.filterApiUrl" . }}"
+              until curl -sf "${FILTER}/api/events/subscribers" >/dev/null 2>&1; do
+                echo "waiting for filter API..."
+                sleep 2
+              done
+              echo "filter API ready"
+              until curl -sf "${K8S_SENSOR}/api/events/subscribers" >/dev/null 2>&1; do
+                echo "waiting for k8s-sensor API..."
+                sleep 2
+              done
+              echo "k8s-sensor API ready"
+              while true; do
+                if curl -sf "${K8S_SENSOR}/api/events/subscribers" | grep -Fq "${CALLBACK}"; then
+                  sleep 30
+                  continue
+                fi
+                echo "registering filter ${CALLBACK} on k8s-sensor"
+                curl -sf -X POST "${K8S_SENSOR}/api/events/register" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"callbackUrl\":\"${CALLBACK}\"}"
+                echo "k8s-sensor registration complete"
+                sleep 30
+              done
+        {{- end }}
       volumes:
         - name: data
           emptyDir: {}
