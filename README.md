@@ -2,11 +2,46 @@
 
 This is a helm chart that should roll out a complete EmELand stack for demonstration purposes. You will need to provide a Kubernetes cluster to run the individual components.
 
-The following example uses a KinD cluster to provide the environment:
+## Charts
+
+| Chart              | Purpose                                                      |
+| ------------------ | ------------------------------------------------------------ |
+| `emeland-demo-crd` | CRDs required by the Kubernetes sensor (install first)       |
+| `emeland-demo`     | Demo stack: web UI server, filter, CLI, git sensor, k8s sensor, Prometheus |
+
+## Quick start
+
+Install CRDs **before** the main stack. The k8s-sensor requires CRDs such as `FindingRule` (`structure.emeland.io/v1alpha1`) to be registered at startup; without them the sensor pod crash-loops.
+
+The following example uses a KinD cluster:
+
 ```bash
 kind create cluster --name emeland-demo
+
+# 1. CRDs first (cluster-scoped; includes FindingRule)
+helm dependency build ./emeland-demo-crd
+helm upgrade --install emeland-demo-crd ./emeland-demo-crd \
+  --namespace emeland-demo --create-namespace
+
+# 2. Main demo stack
 helm dependency build ./emeland-demo
-helm install emeland-demo ./emeland-demo --namespace emeland-demo --create-namespace
+helm upgrade --install emeland-demo ./emeland-demo \
+  --namespace emeland-demo --create-namespace
+```
+
+Verify CRDs and the k8s-sensor image after install:
+
+```bash
+kubectl get crd findingrules.structure.emeland.io
+kubectl get deploy emeland-demo-modelsrv-k8s-sensor -n emeland-demo \
+  -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+```
+
+Access the web UI:
+
+```bash
+kubectl port-forward -n emeland-demo svc/emeland-demo-server 8080:80
+# open http://127.0.0.1:8080
 ```
 
 # Stack Setup
@@ -80,9 +115,9 @@ helm install emeland-demo ./emeland-demo --namespace emeland-demo --create-names
 
 ## Components
 
-The helm chart will roll out a number of components, either directly or from sub-charts:
+The demo stack rolls out the following, either directly or from sub-charts:
 
-- CRDs required for the K8s sensor (via `modelsrv-k8s-crd` sub-chart)
+- **CRDs** (`emeland-demo-crd` chart → `modelsrv-k8s-crd` sub-chart): `System`, `SystemInstance`, `API`, `Component`, and `FindingRule`. Install this chart before `emeland-demo`; Helm does not reliably apply CRDs from subcharts when only the parent chart is installed.
 - This chart will set up the `Deployment` for the following components from prepared OCI images:
     1. **A modelsrv as the central server.** This will be replaced with the [web-server for the Web UI variant](https://github.com/emeland-io/modelsrv-web-ui-server), once it becomes available. It is configured to listen to events from the following two components.
     2. **A container running the EmELand CLI tool.** The container is running a shell and a user can attach to that shell via `kubectl exec`.
