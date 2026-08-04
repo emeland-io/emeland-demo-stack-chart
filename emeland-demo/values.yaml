@@ -7,8 +7,11 @@ modelsrv-k8s-sensor:
   enabled: true
   # This sets the image tag for the modelsrv-k8s-sensor subchart. By default, it uses the appVersion defined in the Chart.yaml of the modelsrv-k8s-sensor subchart.
   image:
-    tag: "main"
+    tag: "v0.6.1"
     repository: ghcr.io/emeland-io/modelsrv-k8s-sensor
+  manager:
+    subscriberUrls:
+      - "http://emeland-demo-filter:80/api/"
 
 # Default values for emeland-demo.
 # This is a YAML-formatted file.
@@ -22,7 +25,7 @@ image:
   server:
     registry: ghcr.io/emeland-io
     repository: modelsrv-web-ui-server
-    tag: "0.4.0"
+    tag: "0.5.0"
     pullPolicy: IfNotPresent
   tools:
     registry: ghcr.io/emeland-io

@@ -11,12 +11,12 @@ appVersion: "0.9.0"
 
 dependencies:
   - name: modelsrv-k8s-crd
-    version: 0.1.0
+    version: 0.6.1
     repository: "oci://ghcr.io/emeland-io/charts"
     condition: modelsrv-k8s-sensor.enabled
 
   - name: modelsrv-k8s-sensor
-    version: 0.1.0
+    version: 0.6.1
     repository: "oci://ghcr.io/emeland-io/charts"
     condition: modelsrv-k8s-sensor.enabled
 
