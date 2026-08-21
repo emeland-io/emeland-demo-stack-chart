@@ -7,7 +7,7 @@ modelsrv-k8s-sensor:
   enabled: true
   # This sets the image tag for the modelsrv-k8s-sensor subchart. By default, it uses the appVersion defined in the Chart.yaml of the modelsrv-k8s-sensor subchart.
   image:
-    tag: "v0.6.1"
+    tag: "v0.6.2"
     repository: ghcr.io/emeland-io/modelsrv-k8s-sensor
   manager:
     subscriberUrls:
@@ -25,12 +25,12 @@ image:
   server:
     registry: ghcr.io/emeland-io
     repository: modelsrv-web-ui-server
-    tag: "0.5.2"
+    tag: "0.5.3"
     pullPolicy: IfNotPresent
   tools:
     registry: ghcr.io/emeland-io
     repository: emelandctl
-    tag: "v0.9.1-rc1"
+    tag: "v0.10.3"
     pullPolicy: IfNotPresent
   gitserver:
     registry: ghcr.io/emeland-io
@@ -40,12 +40,18 @@ image:
   gitsensor:
     registry: ghcr.io/emeland-io
     repository: modelsrv-git-sensor
-    tag: "v0.9.1-rc1"
+    tag: "v0.9.2-rc"
+    pullPolicy: IfNotPresent
+  ociregistrysensor:
+    registry: ghcr.io/emeland-io
+    repository: modelsrv-oci-registry-sensor
+    # No semver release yet; pin to a published tag when available.
+    tag: "v0.1.1"
     pullPolicy: IfNotPresent
   filter:
     registry: ghcr.io/emeland-io
     repository: modelsrv
-    tag: "v0.10.2"
+    tag: "v0.10.3"
     pullPolicy: IfNotPresent
 
 # SSH host key fingerprint for the git server image (ED25519). Update after publishing
@@ -75,11 +81,12 @@ server:
   enabled: true
   noAuth: true
   # Demo visibility: show git- and filter-ingested resources without OIDC ownership.
-  publicResourceTypes: "System,SystemInstance,Node,NodeType,Context,ContextType,Finding,FindingType,API,APIInstance,Component,ComponentInstance,FilterRule,MergeRule"
+  publicResourceTypes: "System,SystemInstance,Node,NodeType,Context,ContextType,Finding,FindingType,API,APIInstance,Component,ComponentInstance,FilterRule,MergeRule,Artifact,ArtifactInstance"
 
 # Phase0 integrity filter (modelsrv) between sensors and web UI server.
 # Flow: gitserver -> gitsensor -> filter -> webserver
 #       k8s-sensor -> filter -> webserver (via modelsrv-k8s-sensor.manager.subscriberUrls)
+#       ociregistrysensor -> filter -> webserver (when ociregistrysensor.enabled)
 # Downstream URLs are passed to modelsrv as SUBSCRIBERS at startup (no register sidecars).
 filter:
   enabled: true
@@ -99,6 +106,23 @@ gitsensor:
   watchedPaths:
     - watchedDir/
   listenPort: 24100
+
+# OCI registry sensor (modelsrv-oci-registry-sensor). Disabled by default; enable and set registries.
+# For GHCR, set repositories (full-registry catalog is denied). Pass the PAT via --set-json; do not commit it.
+ociregistrysensor:
+  enabled: false
+  # When filter.enabled, events push to the filter Service; otherwise directly to the webserver.
+  subscribers: []
+  pollInterval: "60s"
+  # At least one registry is required when enabled.
+  registries: []
+  # Example:
+  # registries:
+  #   - url: "ghcr.io"
+  #     username: "YOUR_GH_USER"
+  #     password: "YOUR_GH_PAT"  # classic PAT with read:packages
+  #     repositories:
+  #       - "emeland-io/modelsrv"
 
 # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []

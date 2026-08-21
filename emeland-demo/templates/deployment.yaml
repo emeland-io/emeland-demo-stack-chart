@@ -418,3 +418,74 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
 {{- end }}
+{{- if .Values.ociregistrysensor.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "emeland-demo.fullname" . }}-ociregistrysensor
+  labels:
+    {{- include "emeland-demo.labels" . | nindent 4 }}
+    component: ociregistrysensor
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "emeland-demo.selectorLabels" . | nindent 6 }}
+      component: ociregistrysensor
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "emeland-demo.labels" . | nindent 8 }}
+        component: ociregistrysensor
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "emeland-demo.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: ociregistrysensor
+          image: {{ include "emeland-demo.ociregistrysensorImage" . | quote }}
+          imagePullPolicy: {{ .Values.image.ociregistrysensor.pullPolicy }}
+          args:
+            - -config
+            - /config/sensor.yaml
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: ociregistrysensor-config
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: ociregistrysensor-config
+          configMap:
+            name: {{ include "emeland-demo.fullname" . }}-ociregistrysensor-config
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

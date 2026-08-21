@@ -7,7 +7,7 @@ This is a helm chart that should roll out a complete EmELand stack for demonstra
 | Chart              | Purpose                                                      |
 | ------------------ | ------------------------------------------------------------ |
 | `emeland-demo-crd` | CRDs required by the Kubernetes sensor (install first)       |
-| `emeland-demo`     | Demo stack: web UI server, filter, CLI, git sensor, k8s sensor, Prometheus |
+| `emeland-demo`     | Demo stack: web UI server, filter, CLI, git sensor, optional OCI registry sensor, k8s sensor, Prometheus |
 
 ## Quick start
 
@@ -82,6 +82,14 @@ kubectl port-forward -n emeland-demo svc/emeland-demo-server 8080:80
 │  │                     │                  Namespaces, Ingresses ...  │
 │  └─────────────────────┘                                             │
 │                                                                      │
+│  ┌─────────────────────┐                                             │
+│  │  ociregistrysensor  │  (optional; disabled by default)            │
+│  │                     │────────────────▶ OCI registries             │
+│  │  polls catalogs     │  Artefact / ArtefactInstance events         │
+│  └──────────┬──────────┘                                             │
+│             │ POST /api/events/push                                  │
+│             └──────────────────────────────▶ modelsrv / filter       │
+│                                                                      │
 │  ┌────────────────────────────────────────────────────────────┐      │
 │  │  Prometheus Stack                                          │      │
 │  │                                                            │      │
@@ -91,12 +99,12 @@ kubectl port-forward -n emeland-demo svc/emeland-demo-server 8080:80
 │  │  │            │                      │ node-exporter  │    │      │
 │  │  └───┬────┬───┘                      └────────────────┘    │      │
 │  │      │    │                                                │      │
-│  │      │    └─────────────────────┐                          │      │
-│  │      │ alerts                   │ queries                  │      │
-│  │      ▼                          ▼                          │      │
-│  │  ┌──────────────┐         ┌─────────┐                      │      │
-│  │  │ Alertmanager │         │ Grafana │                      │      │
-│  │  └──────────────┘         └─────────┘                      │      │
+│  │      │    └─────────────────────────────┐                  │      │
+│  │      │ alerts                           │ queries          │      │
+│  │      ▼                                  ▼                  │      │
+│  │  ┌──────────────┐                 ┌─────────┐              │      │
+│  │  │ Alertmanager │                 │ Grafana │              │      │
+│  │  └──────────────┘                 └─────────┘              │      │
 │  └────────────────────────────────────────────────────────────┘      │
 └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -106,9 +114,11 @@ kubectl port-forward -n emeland-demo svc/emeland-demo-server 8080:80
 | From | To | Protocol | Purpose |
 |------|----|----------|---------|
 | gitsensor | gitserver | SSH (port 22) | Clone repo, poll for changes |
-| gitsensor | modelsrv | HTTP POST `/api/events/push` | Push resource events |
+| gitsensor | modelsrv / filter | HTTP POST `/api/events/push` | Push resource events |
+| ociregistrysensor | OCI registry | HTTPS | Catalog repos, list tags, resolve digests |
+| ociregistrysensor | modelsrv / filter | HTTP POST `/api/events/push` | Push Artefact / ArtefactInstance events |
 | k8s-sensor | K8s API | HTTPS (in-cluster) | Watch workloads |
-| k8s-sensor | modelsrv | HTTP POST `/api/events/push` | Push resource events |
+| k8s-sensor | modelsrv / filter | HTTP POST `/api/events/push` | Push resource events |
 | Prometheus | modelsrv | HTTP GET `/metrics` | Scrape metrics |
 | tools pod | modelsrv | HTTP GET `/api/...` | CLI queries |
 | Grafana | Prometheus | HTTP | Query metrics for dashboards |
@@ -123,6 +133,7 @@ The demo stack rolls out the following, either directly or from sub-charts:
     2. **A container running the EmELand CLI tool.** The container is running a shell and a user can attach to that shell via `kubectl exec`.
     3. **A container containing the git sensor demo data**: Image `ghcr.io/emeland-io/emeland-demo-git` (built from [`emeland-demo-git/`](emeland-demo-git/)) runs an SSH git server with a bare clone of [`test-gitsensor-target`](https://github.com/emeland-io/test-gitsensor-target).
     4. **The Git sensor** (`modelsrv-git-sensor`): Clones from the in-cluster git service over SSH and watches `watchedDir/` manifests.
+    5. **The OCI registry sensor** (`modelsrv-oci-registry-sensor`, optional): Disabled by default. Enable with `ociregistrysensor.enabled=true` and set `ociregistrysensor.registries` to scan OCI registries and emit `Artefact` / `ArtefactInstance` events.
 - The modelsrv Kubernetes sensor (via `modelsrv-k8s-sensor` sub-chart). The sensor will scan the K8s cluster it is deployed in.
 - The kube-prometheus-stack (sub-chart): Prometheus, Alertmanager, Grafana, kube-state-metrics, and node-exporter.
 
