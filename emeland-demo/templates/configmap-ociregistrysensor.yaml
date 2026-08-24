@@ -1,0 +1,41 @@
+{{- if .Values.ociregistrysensor.enabled }}
+{{- if not .Values.ociregistrysensor.registries }}
+{{- fail "ociregistrysensor.enabled is true but ociregistrysensor.registries is empty; configure at least one registry" }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "emeland-demo.fullname" . }}-ociregistrysensor-config
+  labels:
+    {{- include "emeland-demo.labels" . | nindent 4 }}
+    component: ociregistrysensor
+data:
+  sensor.yaml: |
+    subscribers:
+{{- if .Values.ociregistrysensor.subscribers }}
+{{- range .Values.ociregistrysensor.subscribers }}
+      - {{ tpl . $ | quote }}
+{{- end }}
+{{- else if .Values.filter.enabled }}
+      - {{ include "emeland-demo.filterApiUrl" . | quote }}
+{{- else }}
+      - {{ include "emeland-demo.modelsrvApiUrl" . | quote }}
+{{- end }}
+    pollInterval: {{ .Values.ociregistrysensor.pollInterval | quote }}
+    registries:
+{{- range .Values.ociregistrysensor.registries }}
+      - url: {{ .url | quote }}
+{{- if .username }}
+        username: {{ .username | quote }}
+{{- end }}
+{{- if .password }}
+        password: {{ .password | quote }}
+{{- end }}
+{{- with .repositories }}
+        repositories:
+{{- range . }}
+          - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

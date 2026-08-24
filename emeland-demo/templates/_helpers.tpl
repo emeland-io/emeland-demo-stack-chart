@@ -129,6 +129,13 @@ Git sensor container image
 {{- end }}
 
 {{/*
+OCI registry sensor container image
+*/}}
+{{- define "emeland-demo.ociregistrysensorImage" -}}
+{{- printf "%s/%s:%s" .Values.image.ociregistrysensor.registry .Values.image.ociregistrysensor.repository (.Values.image.ociregistrysensor.tag | default .Chart.AppVersion) -}}
+{{- end }}
+
+{{/*
 In-cluster SSH URL for the baked test-gitsensor-target bare repository
 */}}
 {{- define "emeland-demo.gitRepoSSH" -}}
