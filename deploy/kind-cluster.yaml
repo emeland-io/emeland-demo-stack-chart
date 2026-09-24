@@ -1,0 +1,19 @@
+# KinD cluster for the EmELand demo stack.
+#
+# The control-plane node maps host port 80 onto the node's NodePort 30080,
+# which the Envoy Gateway data-plane Service is pinned to (see deploy/gateway.yaml).
+# This makes every service reachable at http://<name>.localtest.me on the host
+# with no port-forwarding.
+#
+# Usage:
+#   kind create cluster --name emeland-demo --config deploy/kind-cluster.yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: emeland-demo
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # host 80 -> gateway HTTP NodePort
+      - containerPort: 30080
+        hostPort: 80
+        protocol: TCP

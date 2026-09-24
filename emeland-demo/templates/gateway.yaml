@@ -1,0 +1,70 @@
+{{- if .Values.gateway.create -}}
+{{- $gwName := include "emeland-demo.gatewayName" . -}}
+{{- $svc := .Values.gateway.service -}}
+# Shared Gateway for the demo stack. All HTTPRoutes (server, monitoring UIs,
+# overview) attach to this Gateway via their parentRefs default.
+#
+# Requires a Gateway controller (e.g. Envoy Gateway) and the Gateway API CRDs
+# to be installed in the cluster already.
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: {{ $gwName }}
+  labels:
+    {{- include "emeland-demo.labels" . | nindent 4 }}
+spec:
+  controllerName: {{ .Values.gateway.controllerName }}
+---
+# Customize the Envoy data-plane Service (type, and an optional pinned NodePort
+# for local clusters like KinD).
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: {{ $gwName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "emeland-demo.labels" . | nindent 4 }}
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        type: {{ $svc.type }}
+        {{- if and (eq $svc.type "NodePort") $svc.nodePort }}
+        # Pin the HTTP listener (port 80, named "http-80" by Envoy Gateway) to a
+        # fixed nodePort so a host port mapping can target it.
+        patch:
+          type: StrategicMerge
+          value:
+            spec:
+              ports:
+                - name: http-80
+                  port: 80
+                  nodePort: {{ $svc.nodePort }}
+        {{- end }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ $gwName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "emeland-demo.labels" . | nindent 4 }}
+spec:
+  gatewayClassName: {{ $gwName }}
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: {{ $gwName }}
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      # No listener hostname: each HTTPRoute sets its own. A *.localtest.me
+      # wildcard would exclude the bare apex (localtest.me) the overview uses.
+      allowedRoutes:
+        namespaces:
+          from: Same
+{{- end }}
