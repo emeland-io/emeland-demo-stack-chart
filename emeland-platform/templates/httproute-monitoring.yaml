@@ -1,14 +1,13 @@
 {{- if .Values.monitoringRoutes.enabled -}}
-{{- $svcPort := .Values.service.port -}}
 {{- $parentRefs := .Values.monitoringRoutes.parentRefs -}}
 {{- range .Values.monitoringRoutes.routes }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: {{ include "emeland-demo.fullname" $ }}-{{ .name }}
+  name: {{ include "emeland-platform.fullname" $ }}-{{ .name }}
   labels:
-    {{- include "emeland-demo.labels" $ | nindent 4 }}
+    {{- include "emeland-platform.labels" $ | nindent 4 }}
   {{- with .annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}

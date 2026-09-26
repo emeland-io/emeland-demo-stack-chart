@@ -1,0 +1,101 @@
+# Values for the emeland-platform chart (cluster/platform layer).
+#
+# This chart owns cluster-related infrastructure. The EmELand application chart
+# (emeland-demo) attaches to the Gateway created here.
+
+# -- Monitoring stack (kube-prometheus-stack: Prometheus, Alertmanager, Grafana,
+# kube-state-metrics, node-exporter). Gated by condition: in Chart.yaml.
+kube-prometheus-stack:
+  enabled: true
+
+# metrics-server provides the Metrics API (kubectl top, HPA, and the homepage
+# cluster widget). On KinD the kubelet serves a self-signed cert, so we must
+# skip TLS verification with --kubelet-insecure-tls.
+metrics-server:
+  enabled: true
+  args:
+    - --kubelet-insecure-tls
+
+# -- Shared Gateway (Gateway API) that all HTTPRoutes attach to (this chart's
+# monitoring/overview routes and the EmELand app chart's routes).
+# Requires the Gateway API CRDs and a Gateway controller (e.g. Envoy Gateway).
+gateway:
+  # Create the GatewayClass + Gateway with this chart.
+  create: true
+  # Gateway (and GatewayClass) name. The app chart references this same name.
+  name: gateway
+  # GatewayClass controller. Default matches Envoy Gateway.
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  # Which namespaces may attach HTTPRoutes to this Gateway. "All" lets the
+  # EmELand app chart (in its own namespace) attach its routes.
+  allowedRoutesNamespaces: All
+  # How the Envoy data plane is exposed. "LoadBalancer" suits real clusters;
+  # the KinD overlay switches this to a pinned NodePort (see deploy/).
+  service:
+    type: LoadBalancer
+    # Only used when type is NodePort; pins the HTTP listener's node port.
+    nodePort: ""
+
+# -- Expose the kube-prometheus-stack UIs (Grafana/Prometheus/Alertmanager) via
+# HTTPRoutes on the shared Gateway. Backend service names default to the
+# kube-prometheus-stack release-derived names; override `releaseName` if you
+# install the stack under a different release name.
+monitoringRoutes:
+  enabled: true
+  # Gateways these routes attach to (the shared Gateway created above).
+  parentRefs:
+    - name: gateway
+      sectionName: http
+  # kube-prometheus-stack release name, used to derive backend service names.
+  # Must match the Helm release name this chart is installed under.
+  releaseName: emeland-platform
+  routes:
+    - name: grafana
+      hostname: grafana.localtest.me
+      service: '{{ .Values.monitoringRoutes.releaseName }}-grafana'
+      port: 80
+      annotations:
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: Grafana
+        gethomepage.dev/group: Observability
+        gethomepage.dev/description: Dashboards
+        gethomepage.dev/app: grafana
+    - name: prometheus
+      hostname: prometheus.localtest.me
+      service: '{{ .Values.monitoringRoutes.releaseName }}-kube-promethe-prometheus'
+      port: 9090
+      annotations:
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: Prometheus
+        gethomepage.dev/group: Observability
+        gethomepage.dev/description: Metrics and targets
+        gethomepage.dev/app: prometheus
+    - name: alertmanager
+      hostname: alertmanager.localtest.me
+      service: '{{ .Values.monitoringRoutes.releaseName }}-kube-promethe-alertmanager'
+      port: 9093
+      annotations:
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: Alertmanager
+        gethomepage.dev/group: Observability
+        gethomepage.dev/description: Alerts
+        gethomepage.dev/app: alertmanager
+
+# -- Overview landing page (gethomepage/homepage) served at the bare host.
+# Runs in Kubernetes "cluster" mode with Gateway API discovery enabled, so it
+# auto-detects every HTTPRoute annotated with gethomepage.dev/enabled=true
+# across the cluster (including the EmELand app's server route).
+overview:
+  enabled: true
+  image:
+    registry: ghcr.io/gethomepage
+    repository: homepage
+    tag: "v2.4.0"
+    pullPolicy: IfNotPresent
+  # Bare host that serves the landing page (no subdomain).
+  hostname: localtest.me
+  parentRefs:
+    - name: gateway
+      sectionName: http
+  allowedHosts: "localtest.me"
+  title: EmELand Demo Stack

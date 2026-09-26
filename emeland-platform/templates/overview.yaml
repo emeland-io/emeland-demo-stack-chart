@@ -1,20 +1,20 @@
 {{- if .Values.overview.enabled -}}
-{{- $name := include "emeland-demo.overviewName" . -}}
+{{- $name := include "emeland-platform.overviewName" . -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ $name }}
   labels:
-    {{- include "emeland-demo.overviewLabels" . | nindent 4 }}
+    {{- include "emeland-platform.overviewLabels" . | nindent 4 }}
 data:
-  {{- include "emeland-demo.overviewConfig" . | nindent 2 }}
+  {{- include "emeland-platform.overviewConfig" . | nindent 2 }}
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: {{ $name }}
   labels:
-    {{- include "emeland-demo.overviewLabels" . | nindent 4 }}
+    {{- include "emeland-platform.overviewLabels" . | nindent 4 }}
 automountServiceAccountToken: true
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -22,7 +22,7 @@ kind: ClusterRole
 metadata:
   name: {{ $name }}
   labels:
-    {{- include "emeland-demo.overviewLabels" . | nindent 4 }}
+    {{- include "emeland-platform.overviewLabels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
     resources: [namespaces, pods, nodes]
@@ -40,7 +40,7 @@ kind: ClusterRoleBinding
 metadata:
   name: {{ $name }}
   labels:
-    {{- include "emeland-demo.overviewLabels" . | nindent 4 }}
+    {{- include "emeland-platform.overviewLabels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -55,7 +55,7 @@ kind: Service
 metadata:
   name: {{ $name }}
   labels:
-    {{- include "emeland-demo.overviewLabels" . | nindent 4 }}
+    {{- include "emeland-platform.overviewLabels" . | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
@@ -64,33 +64,33 @@ spec:
       protocol: TCP
       name: http
   selector:
-    {{- include "emeland-demo.overviewSelectorLabels" . | nindent 4 }}
+    {{- include "emeland-platform.overviewSelectorLabels" . | nindent 4 }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ $name }}
   labels:
-    {{- include "emeland-demo.overviewLabels" . | nindent 4 }}
+    {{- include "emeland-platform.overviewLabels" . | nindent 4 }}
 spec:
   revisionHistoryLimit: 3
   replicas: 1
   selector:
     matchLabels:
-      {{- include "emeland-demo.overviewSelectorLabels" . | nindent 6 }}
+      {{- include "emeland-platform.overviewSelectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "emeland-demo.overviewLabels" . | nindent 8 }}
+        {{- include "emeland-platform.overviewLabels" . | nindent 8 }}
       annotations:
         # Roll the pod when the homepage config (files or values) changes.
-        checksum/config: {{ printf "%s%s" (include "emeland-demo.overviewConfig" .) (.Values.overview | toYaml) | sha256sum }}
+        checksum/config: {{ printf "%s%s" (include "emeland-platform.overviewConfig" .) (.Values.overview | toYaml) | sha256sum }}
     spec:
       serviceAccountName: {{ $name }}
       automountServiceAccountToken: true
       containers:
         - name: homepage
-          image: {{ include "emeland-demo.overviewImage" . | quote }}
+          image: {{ include "emeland-platform.overviewImage" . | quote }}
           imagePullPolicy: {{ .Values.overview.image.pullPolicy }}
           securityContext:
             allowPrivilegeEscalation: false
@@ -145,7 +145,7 @@ kind: HTTPRoute
 metadata:
   name: {{ $name }}
   labels:
-    {{- include "emeland-demo.overviewLabels" . | nindent 4 }}
+    {{- include "emeland-platform.overviewLabels" . | nindent 4 }}
   annotations:
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: Overview

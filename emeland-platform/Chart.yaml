@@ -1,0 +1,27 @@
+apiVersion: v2
+name: emeland-platform
+description: >
+  Cluster/platform layer for the EmELand demo stack. Owns everything tied to the
+  cluster rather than to EmELand itself: the shared Gateway API Gateway (and its
+  GatewayClass / Envoy data-plane exposure), the kube-prometheus-stack,
+  metrics-server, the monitoring UI routes, and the homepage overview landing
+  page.
+
+  The EmELand application layer (emeland-demo) is cluster-agnostic and attaches
+  to the Gateway this chart provides, referencing it by name/namespace.
+
+type: application
+
+version: 0.1.0
+appVersion: "0.9.0"
+
+dependencies:
+  - name: kube-prometheus-stack
+    version: 45.0.0
+    repository: "oci://ghcr.io/prometheus-community/charts"
+    condition: kube-prometheus-stack.enabled
+
+  - name: metrics-server
+    version: 3.14.0
+    repository: "https://kubernetes-sigs.github.io/metrics-server/"
+    condition: metrics-server.enabled
