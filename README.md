@@ -11,9 +11,37 @@ This is a helm chart that should roll out a complete EmELand stack for demonstra
 
 ## Quick start
 
-Install CRDs **before** the main stack. The k8s-sensor requires CRDs such as `FindingRule` (`structure.emeland.io/v1alpha1`) to be registered at startup; without them the sensor pod crash-loops.
+The fastest path is the [`deploy/start-demo.sh`](deploy/start-demo.sh) script. It
+recreates a KinD cluster, installs Envoy Gateway, deploys both charts, and prints
+the service URLs. It requires `docker`, `kind`, `kubectl`, and `helm`.
 
-The following example uses a KinD cluster:
+```bash
+deploy/start-demo.sh
+# reuse an existing cluster instead of recreating it:
+KEEP_CLUSTER=1 deploy/start-demo.sh
+```
+
+When it finishes, every UI is reachable on the host (no port-forwarding); the
+overview page auto-detects the others:
+
+| URL | Service |
+| --- | --- |
+| http://localtest.me | Overview landing page (auto-detected services) |
+| http://emeland.localtest.me | EmELand web UI / server |
+| http://grafana.localtest.me | Grafana |
+| http://prometheus.localtest.me | Prometheus |
+| http://alertmanager.localtest.me | Alertmanager |
+
+`*.localtest.me` and the bare `localtest.me` both resolve to `127.0.0.1`, so no
+`/etc/hosts` edits are needed. Access works because the KinD node maps host port
+80 to the Envoy Gateway (see [`deploy/kind-cluster.yaml`](deploy/kind-cluster.yaml)
+and [`deploy/gateway-values.yaml`](deploy/gateway-values.yaml)).
+
+### Manual install
+
+You can also install the charts by hand. Install CRDs **before** the main stack:
+the k8s-sensor requires CRDs such as `FindingRule` (`structure.emeland.io/v1alpha1`)
+at startup; without them the sensor pod crash-loops.
 
 ```bash
 kind create cluster --name emeland-demo
@@ -24,9 +52,23 @@ helm upgrade --install emeland-demo-crd ./emeland-demo-crd \
   --namespace emeland-demo --create-namespace
 
 # 2. Main demo stack
-helm dependency build ./emeland-demo
+helm dependency update ./emeland-demo
 helm upgrade --install emeland-demo ./emeland-demo \
   --namespace emeland-demo --create-namespace
+```
+
+The chart creates a Gateway API `Gateway` and `HTTPRoute`s for every UI, but you
+must provide the Gateway controller (e.g. Envoy Gateway) and the Gateway API CRDs
+yourself, and set hostnames suitable for your environment. On a non-KinD cluster
+the Envoy Service defaults to `LoadBalancer`; on KinD use the NodePort overlay
+(`-f deploy/gateway-values.yaml`) as the script does. Without a Gateway, disable
+routing with `--set gateway.create=false --set httpRoute.enabled=false --set
+monitoringRoutes.enabled=false --set overview.enabled=false` and reach the server
+directly:
+
+```bash
+kubectl port-forward -n emeland-demo svc/emeland-demo-server 8080:80
+# open http://127.0.0.1:8080
 ```
 
 Verify CRDs and the k8s-sensor image after install:
@@ -35,13 +77,6 @@ Verify CRDs and the k8s-sensor image after install:
 kubectl get crd findingrules.structure.emeland.io
 kubectl get deploy emeland-demo-modelsrv-k8s-sensor -n emeland-demo \
   -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
-```
-
-Access the web UI:
-
-```bash
-kubectl port-forward -n emeland-demo svc/emeland-demo-server 8080:80
-# open http://127.0.0.1:8080
 ```
 
 # Stack Setup
@@ -136,6 +171,10 @@ The demo stack rolls out the following, either directly or from sub-charts:
     5. **The OCI registry sensor** (`modelsrv-oci-registry-sensor`, optional): Disabled by default. Enable with `ociregistrysensor.enabled=true` and set `ociregistrysensor.registries` to scan OCI registries and emit `Artefact` / `ArtefactInstance` events.
 - The modelsrv Kubernetes sensor (via `modelsrv-k8s-sensor` sub-chart). The sensor will scan the K8s cluster it is deployed in.
 - The kube-prometheus-stack (sub-chart): Prometheus, Alertmanager, Grafana, kube-state-metrics, and node-exporter.
+- **metrics-server** (sub-chart, `metrics-server.enabled`): provides the Metrics API for `kubectl top`, HPA, and the overview cluster widget. On KinD it runs with `--kubelet-insecure-tls` (see `metrics-server.args`).
+- **A `ServiceMonitor`** (`serviceMonitor.enabled`) telling the kube-prometheus-stack Prometheus to scrape the modelsrv server and filter `/metrics` endpoints.
+- **A shared Gateway API `Gateway`** (`gateway.create`) named `gateway`, plus its `GatewayClass` and Envoy `EnvoyProxy`, and an `HTTPRoute` per UI. Requires a Gateway controller (e.g. Envoy Gateway) in the cluster. The Envoy Service defaults to `LoadBalancer`; the KinD overlay pins it to a NodePort.
+- **An overview landing page** (`overview.enabled`, [gethomepage/homepage](https://github.com/gethomepage/homepage)) served at the bare host. It runs in Kubernetes "cluster" mode with Gateway API discovery, so it auto-detects every `HTTPRoute` annotated with `gethomepage.dev/enabled`.
 
 ## Git server image
 

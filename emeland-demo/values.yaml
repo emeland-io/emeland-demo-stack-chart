@@ -3,6 +3,14 @@
 kube-prometheus-stack:
   enabled: true
 
+# metrics-server provides the Metrics API (kubectl top, HPA, and the homepage
+# cluster widget). On KinD the kubelet serves a self-signed cert, so we must
+# skip TLS verification with --kubelet-insecure-tls.
+metrics-server:
+  enabled: true
+  args:
+    - --kubelet-insecure-tls
+
 modelsrv-k8s-sensor:
   enabled: true
   # This sets the image tag for the modelsrv-k8s-sensor subchart. By default, it uses the appVersion defined in the Chart.yaml of the modelsrv-k8s-sensor subchart.
@@ -184,43 +192,123 @@ ingress:
     #   hosts:
     #     - chart-example.local
 
+# -- Shared Gateway (Gateway API) that all HTTPRoutes attach to.
+# Requires the Gateway API CRDs and a Gateway controller (e.g. Envoy Gateway)
+# installed in the cluster (see: https://gateway-api.sigs.k8s.io/guides/).
+gateway:
+  # Create the GatewayClass + Gateway with this chart. Set false to attach the
+  # routes to a Gateway you manage separately.
+  create: true
+  # Gateway (and GatewayClass) name. HTTPRoute parentRefs default to this, so
+  # the routes and the Gateway always agree.
+  name: gateway
+  # GatewayClass controller. Default matches Envoy Gateway.
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  # How the Envoy data plane is exposed. "LoadBalancer" suits real clusters;
+  # the KinD demo overlay switches this to a pinned NodePort (see
+  # deploy/gateway-values.yaml).
+  service:
+    type: LoadBalancer
+    # Only used when type is NodePort; pins the HTTP listener's node port.
+    nodePort: ""
+
 # -- Expose the service via gateway-api HTTPRoute
 # Requires Gateway API resources and suitable controller installed within the cluster
 # (see: https://gateway-api.sigs.k8s.io/guides/)
 httpRoute:
   # HTTPRoute enabled.
-  enabled: false
-  # HTTPRoute annotations.
-  annotations: {}
-  # Which Gateways this Route is attached to.
+  enabled: true
+  # HTTPRoute annotations. Discovered by the homepage overview page; homepage
+  # derives the health selector app.kubernetes.io/name=emeland-demo, which
+  # matches the server pod.
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: EmELand Web UI
+    gethomepage.dev/group: EmELand
+    gethomepage.dev/description: Landscape model and web UI
+  # Which Gateways this Route is attached to (defaults to the chart's Gateway).
   parentRefs:
   - name: gateway
     sectionName: http
-    # namespace: default
-  # Hostnames matching HTTP header.
+  # Hostname the server is served on. Override for your environment.
   hostnames:
-  - chart-example.local
-  # List of rules and filters applied.
+  - emeland.localtest.me
+  # Route everything to the server.
   rules:
   - matches:
     - path:
         type: PathPrefix
-        value: /headers
-  #   filters:
-  #   - type: RequestHeaderModifier
-  #     requestHeaderModifier:
-  #       set:
-  #       - name: My-Overwrite-Header
-  #         value: this-is-the-only-value
-  #       remove:
-  #       - User-Agent
-  # - matches:
-  #   - path:
-  #       type: PathPrefix
-  #       value: /echo
-  #     headers:
-  #     - name: version
-  #       value: v2
+        value: /
+
+# -- Expose the kube-prometheus-stack UIs (Grafana/Prometheus/Alertmanager)
+# via HTTPRoutes on the same Gateway as the server. Backend service names
+# default to the kube-prometheus-stack release-derived names; override the
+# `service` field if you install under a different release name.
+monitoringRoutes:
+  enabled: true
+  # Gateways these routes attach to (usually the same as httpRoute.parentRefs).
+  parentRefs:
+  - name: gateway
+    sectionName: http
+  # One HTTPRoute per entry.
+  routes:
+  - name: grafana
+    hostname: grafana.localtest.me
+    service: '{{ include "emeland-demo.fullname" . }}-grafana'
+    port: 80
+    annotations:
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/name: Grafana
+      gethomepage.dev/group: Observability
+      gethomepage.dev/description: Dashboards
+      # Homepage builds the health-check label selector from the app name
+      # (app.kubernetes.io/name=<app>). Set it to the real subchart pod name.
+      gethomepage.dev/app: grafana
+  - name: prometheus
+    hostname: prometheus.localtest.me
+    service: '{{ include "emeland-demo.fullname" . }}-kube-promethe-prometheus'
+    port: 9090
+    annotations:
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/name: Prometheus
+      gethomepage.dev/group: Observability
+      gethomepage.dev/description: Metrics and targets
+      gethomepage.dev/app: prometheus
+  - name: alertmanager
+    hostname: alertmanager.localtest.me
+    service: '{{ include "emeland-demo.fullname" . }}-kube-promethe-alertmanager'
+    port: 9093
+    annotations:
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/name: Alertmanager
+      gethomepage.dev/group: Observability
+      gethomepage.dev/description: Alerts
+      gethomepage.dev/app: alertmanager
+
+# -- Overview landing page (gethomepage/homepage) served at the bare host.
+# Runs in Kubernetes "cluster" mode with Gateway API discovery enabled, so it
+# auto-detects every HTTPRoute annotated with gethomepage.dev/enabled=true.
+# The server and monitoring routes get those annotations automatically.
+overview:
+  # Enabled by default; requires a Gateway (deploy/gateway.yaml) for the
+  # landing-page HTTPRoute to attach to. Disable if you run without a Gateway.
+  enabled: true
+  image:
+    registry: ghcr.io/gethomepage
+    repository: homepage
+    tag: "v2.4.0"
+    pullPolicy: IfNotPresent
+  # Bare host that serves the landing page (no subdomain).
+  hostname: localtest.me
+  # Gateways the landing-page HTTPRoute attaches to.
+  parentRefs:
+    - name: gateway
+      sectionName: http
+  # Extra hosts homepage will accept requests for (CSRF/allowed-hosts guard).
+  # The pod-IP entry is required for the k8s health probe.
+  allowedHosts: "localtest.me"
+  # Dashboard title shown at the top of the page.
+  title: EmELand Demo Stack
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious

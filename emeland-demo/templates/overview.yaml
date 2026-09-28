@@ -1,0 +1,169 @@
+{{- if .Values.overview.enabled -}}
+{{- $name := include "emeland-demo.overviewName" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "emeland-demo.overviewLabels" . | nindent 4 }}
+data:
+  {{- include "emeland-demo.overviewConfig" . | nindent 2 }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "emeland-demo.overviewLabels" . | nindent 4 }}
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "emeland-demo.overviewLabels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [namespaces, pods, nodes]
+    verbs: [get, list]
+  # This deployment discovers services via Gateway API only (no Ingress).
+  - apiGroups: [gateway.networking.k8s.io]
+    resources: [httproutes, gateways]
+    verbs: [get, list]
+  - apiGroups: [metrics.k8s.io]
+    resources: [nodes, pods]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "emeland-demo.overviewLabels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "emeland-demo.overviewLabels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "emeland-demo.overviewSelectorLabels" . | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "emeland-demo.overviewLabels" . | nindent 4 }}
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "emeland-demo.overviewSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "emeland-demo.overviewLabels" . | nindent 8 }}
+      annotations:
+        # Roll the pod when the homepage config (files or values) changes.
+        checksum/config: {{ printf "%s%s" (include "emeland-demo.overviewConfig" .) (.Values.overview | toYaml) | sha256sum }}
+    spec:
+      serviceAccountName: {{ $name }}
+      automountServiceAccountToken: true
+      containers:
+        - name: homepage
+          image: {{ include "emeland-demo.overviewImage" . | quote }}
+          imagePullPolicy: {{ .Values.overview.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            # First entry (pod IP) is required for the k8s probe; the rest are
+            # the hostnames homepage is served on.
+            - name: HOMEPAGE_ALLOWED_HOSTS
+              value: "$(MY_POD_IP):3000,{{ .Values.overview.allowedHosts }}"
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          volumeMounts:
+            # A writable emptyDir is the base of /app/config so homepage can
+            # create the config files it expects (e.g. proxmox.yaml); our
+            # ConfigMap files are then layered on top via subPath.
+            - mountPath: /app/config
+              name: config
+            {{- range $f := (list "kubernetes.yaml" "settings.yaml" "widgets.yaml" "services.yaml" "bookmarks.yaml" "custom.css" "custom.js" "docker.yaml") }}
+            - mountPath: /app/config/{{ $f }}
+              name: config-files
+              subPath: {{ $f }}
+            {{- end }}
+      volumes:
+        # Writable base dir.
+        - name: config
+          emptyDir: {}
+        # Our managed config files, layered onto the writable base.
+        - name: config-files
+          configMap:
+            name: {{ $name }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "emeland-demo.overviewLabels" . | nindent 4 }}
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: Overview
+    gethomepage.dev/group: EmELand
+    gethomepage.dev/description: This dashboard
+    gethomepage.dev/app: homepage
+spec:
+  parentRefs:
+    {{- toYaml .Values.overview.parentRefs | nindent 4 }}
+  hostnames:
+    - {{ .Values.overview.hostname | quote }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: {{ $name }}
+          port: 3000
+          weight: 1
+{{- end }}

@@ -141,3 +141,88 @@ In-cluster SSH URL for the baked test-gitsensor-target bare repository
 {{- define "emeland-demo.gitRepoSSH" -}}
 {{- printf "git@%s-git:%s" (include "emeland-demo.fullname" .) .Values.gitsensor.repoPath -}}
 {{- end }}
+
+{{/*
+Overview (homepage) resource name
+*/}}
+{{- define "emeland-demo.overviewName" -}}
+{{- printf "%s-homepage" (include "emeland-demo.fullname" .) -}}
+{{- end }}
+
+{{/*
+Gateway name. Defaults to "gateway" but can be overridden. Used by the Gateway
+template and as the default parentRef for all HTTPRoutes, so they always agree.
+*/}}
+{{- define "emeland-demo.gatewayName" -}}
+{{- .Values.gateway.name | default "gateway" -}}
+{{- end }}
+
+{{/*
+Overview (homepage) selector labels
+*/}}
+{{- define "emeland-demo.overviewSelectorLabels" -}}
+app.kubernetes.io/name: homepage
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
+Overview (homepage) common labels
+*/}}
+{{- define "emeland-demo.overviewLabels" -}}
+helm.sh/chart: {{ include "emeland-demo.chart" . }}
+{{ include "emeland-demo.overviewSelectorLabels" . }}
+app.kubernetes.io/component: overview
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{/*
+Overview (homepage) container image
+*/}}
+{{- define "emeland-demo.overviewImage" -}}
+{{- printf "%s/%s:%s" .Values.overview.image.registry .Values.overview.image.repository .Values.overview.image.tag -}}
+{{- end }}
+
+{{/*
+Overview (homepage) config files (the ConfigMap data block). Defined once so
+the Deployment can checksum it and roll the pod when the config changes.
+*/}}
+{{- define "emeland-demo.overviewConfig" -}}
+# Cluster mode + Gateway API discovery: homepage watches HTTPRoutes annotated
+# with gethomepage.dev/enabled and builds service tiles from them.
+kubernetes.yaml: |
+  mode: cluster
+  # Gateway API discovery only. Ingress discovery is left disabled so homepage
+  # neither queries ingresses nor needs RBAC for them.
+  gateway: true
+  ingress: false
+settings.yaml: |
+  title: {{ .Values.overview.title | quote }}
+  # Group tiles by the gethomepage.dev/group annotation on each route.
+  layout:
+    EmELand:
+      style: row
+      columns: 2
+    Observability:
+      style: row
+      columns: 3
+widgets.yaml: |
+  # Cluster CPU/memory. Needs the Metrics API (metrics-server), which the
+  # chart installs by default (see metrics-server.enabled).
+  - kubernetes:
+      cluster:
+        show: true
+        cpu: true
+        memory: true
+        showLabel: true
+        label: cluster
+      nodes:
+        show: false
+  - search:
+      provider: duckduckgo
+      target: _blank
+services.yaml: ""
+bookmarks.yaml: ""
+custom.css: ""
+custom.js: ""
+docker.yaml: ""
+{{- end }}

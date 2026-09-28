@@ -24,6 +24,11 @@ dependencies:
     version: 45.0.0
     repository: "oci://ghcr.io/prometheus-community/charts"
     condition: kube-prometheus-stack.enabled
+
+  - name: metrics-server
+    version: 3.14.0
+    repository: "https://kubernetes-sigs.github.io/metrics-server/"
+    condition: metrics-server.enabled
     
   # there is a version included in the kube-prometheus-stack chart. Uncomment if you want to have direct control over the version of grafana.
   #- name: grafana

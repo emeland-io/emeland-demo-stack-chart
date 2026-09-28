@@ -1,0 +1,13 @@
+# KinD-specific Helm values overlay for the demo stack.
+#
+# The chart's defaults already create the Gateway and enable all routes with
+# localtest.me hostnames. On KinD there is no cloud load balancer, so we switch
+# the Envoy data-plane Service to a pinned NodePort (30080) that the KinD host
+# port mapping (host 80 -> node 30080, see deploy/kind-cluster.yaml) targets.
+#
+# Used by deploy/start-demo.sh:
+#   helm upgrade --install emeland-demo ./emeland-demo -f deploy/gateway-values.yaml ...
+gateway:
+  service:
+    type: NodePort
+    nodePort: 30080
