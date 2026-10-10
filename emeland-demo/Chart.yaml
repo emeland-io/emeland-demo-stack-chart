@@ -16,7 +16,7 @@ dependencies:
     condition: modelsrv-k8s-sensor.enabled
 
   - name: modelsrv-k8s-sensor
-    version: 0.6.2
+    version: 0.6.5
     repository: "oci://ghcr.io/emeland-io/charts"
     condition: modelsrv-k8s-sensor.enabled
 
