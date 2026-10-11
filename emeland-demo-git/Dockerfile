@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Stage 1: bake test-gitsensor-target as a bare repository
-FROM alpine/git:2.45.2 AS repo-builder
+FROM alpine/git:v2.54.0 AS repo-builder
 ARG GITSENSOR_TARGET_REF=main
 ARG GITSENSOR_TARGET_REPO=https://github.com/emeland-io/test-gitsensor-target.git
 
