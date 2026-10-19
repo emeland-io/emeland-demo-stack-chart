@@ -296,7 +296,7 @@ overview:
   image:
     registry: ghcr.io/gethomepage
     repository: homepage
-    tag: "v2.4.0"
+    tag: "v2.6.0"
     pullPolicy: IfNotPresent
   # Bare host that serves the landing page (no subdomain).
   hostname: localtest.me
