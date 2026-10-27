@@ -1,0 +1,14 @@
+# KinD-specific Helm values overlay for the PLATFORM chart (emeland-platform).
+#
+# The platform chart's defaults create the shared Gateway and enable all
+# monitoring/overview routes with localtest.me hostnames. On KinD there is no
+# cloud load balancer, so we switch the Envoy data-plane Service to a pinned
+# NodePort (30080) that the KinD host port mapping (host 80 -> node 30080, see
+# deploy/kind-cluster.yaml) targets.
+#
+# Used by deploy/start-demo.sh:
+#   helm upgrade --install emeland-platform ./emeland-platform -f deploy/platform-kind-values.yaml ...
+gateway:
+  service:
+    type: NodePort
+    nodePort: 30080

@@ -12,10 +12,14 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  # Attach to the shared Gateway provided by the emeland-platform chart. The
+  # Gateway lives in gateway.namespace (a different namespace than this app), so
+  # the parentRef names that namespace, and the Gateway must allow routes from
+  # this namespace (emeland-platform gateway.allowedRoutesNamespaces=All).
   parentRefs:
-    {{- with .Values.httpRoute.parentRefs }}
-      {{- toYaml . | nindent 4 }}
-    {{- end }}
+    - name: {{ .Values.gateway.name }}
+      namespace: {{ .Values.gateway.namespace }}
+      sectionName: http
   {{- with .Values.httpRoute.hostnames }}
   hostnames:
     {{- toYaml . | nindent 4 }}
